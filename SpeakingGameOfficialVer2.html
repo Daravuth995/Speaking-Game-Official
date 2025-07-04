@@ -1,0 +1,1159 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>IPA Matching Game</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: 'Arial', sans-serif;
+        }
+
+        body {
+            background-color: #f0f8ff;
+            min-height: 100vh;
+            overflow-x: hidden;
+        }
+
+        .header {
+            text-align: center;
+            padding: 20px;
+            background-color: #4b86b4;
+            color: white;
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.2);
+        }
+
+        .controls {
+            display: flex;
+            justify-content: center;
+            gap: 20px;
+            padding: 15px;
+            background-color: #e1f5fe;
+            flex-wrap: wrap;
+        }
+
+        .schedule-selector {
+            display: flex;
+            gap: 10px;
+            align-items: center;
+        }
+
+        .schedule-btn {
+            padding: 8px 15px;
+            border: none;
+            border-radius: 20px;
+            background-color: #4b86b4;
+            color: white;
+            cursor: pointer;
+            font-weight: bold;
+            transition: all 0.3s;
+        }
+
+        .schedule-btn:hover {
+            background-color: #3a6d94;
+            transform: scale(1.05);
+        }
+
+        .schedule-btn.active {
+            background-color: #2e7d32;
+            box-shadow: 0 0 10px rgba(46, 125, 50, 0.5);
+        }
+
+        .start-btn {
+            padding: 10px 25px;
+            background-color: #2e7d32;
+            color: white;
+            border: none;
+            border-radius: 20px;
+            font-weight: bold;
+            cursor: pointer;
+            transition: all 0.3s;
+            display: none;
+        }
+
+        .start-btn:hover {
+            background-color: #1b5e20;
+            transform: scale(1.05);
+        }
+
+        .game-container {
+            display: flex;
+            flex-direction: column;
+            height: calc(100vh - 180px);
+        }
+
+        .questions-section {
+            flex: 1;
+            position: relative;
+            border-bottom: 2px dashed #4b86b4;
+            overflow: hidden;
+        }
+
+        .answers-section {
+            flex: 1;
+            display: flex;
+            flex-wrap: wrap;
+            justify-content: center;
+            align-content: center;
+            gap: 15px;
+            padding: 20px;
+            overflow-y: auto;
+        }
+
+        .question-card {
+            position: absolute;
+            width: 150px;
+            height: 100px;
+            background-color: #e1f5fe;
+            border-radius: 10px;
+            padding: 10px;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            text-align: center;
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+            cursor: pointer;
+            transition: transform 0.3s, box-shadow 0.3s, opacity 0.5s ease;
+            font-size: 14px;
+            border: 2px solid #4b86b4;
+            user-select: none;
+        }
+
+        .question-card:hover {
+            transform: scale(1.05);
+            box-shadow: 0 6px 12px rgba(0, 0, 0, 0.15);
+        }
+
+        .question-card.matched {
+            background-color: #c8e6c9;
+            border-color: #2e7d32;
+            box-shadow: 0 0 15px #2e7d32;
+        }
+
+        .question-card.highlighted {
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%) scale(1.5);
+            z-index: 1000;
+            transition: all 0.5s ease;
+            width: 300px;
+            height: auto;
+            min-height: 200px;
+            padding: 20px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            font-size: 20px;
+            font-weight: bold;
+        }
+
+        .question-card.highlighted::before {
+            content: attr(data-student);
+            display: block;
+            font-size: 24px;
+            font-weight: bold;
+            color: #2e7d32;
+            margin-bottom: 15px;
+            padding-bottom: 10px;
+            border-bottom: 2px solid #4b86b4;
+            width: 100%;
+            text-align: center;
+        }
+
+        .question-card.beginner {
+            background-color: #fff8e1;
+            border-color: #ffa000;
+        }
+
+        .question-card.fade-out {
+            opacity: 0;
+            pointer-events: none;
+        }
+
+        .answer-card {
+            width: 120px;
+            height: 120px;
+            perspective: 1000px;
+            cursor: pointer;
+            transition: opacity 0.5s ease;
+        }
+
+        .answer-card.next-in-turn {
+            box-shadow: 0 0 15px #ff9800;
+        }
+
+        .card-inner {
+            position: relative;
+            width: 100%;
+            height: 100%;
+            text-align: center;
+            transition: transform 0.8s;
+            transform-style: preserve-3d;
+        }
+
+        .answer-card.flipped .card-inner {
+            transform: rotateY(180deg);
+        }
+
+        .card-front, .card-back {
+            position: absolute;
+            width: 100%;
+            height: 100%;
+            backface-visibility: hidden;
+            border-radius: 10px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+            padding: 10px;
+        }
+
+        .card-front {
+            background-color: #4b86b4;
+            color: white;
+            font-size: 48px;
+            font-weight: bold;
+        }
+
+        .card-back {
+            background-color: #e1f5fe;
+            color: #333;
+            transform: rotateY(180deg);
+            font-size: 18px;
+            font-weight: bold;
+            border: 2px solid #4b86b4;
+            flex-direction: column;
+        }
+
+        .card-back.beginner {
+            background-color: #fff8e1;
+            border-color: #ffa000;
+        }
+
+        .student-name {
+            margin-top: 5px;
+            font-size: 16px;
+        }
+
+        .answer-card.flying {
+            position: fixed;
+            z-index: 100;
+            pointer-events: none;
+            transition: transform 0.5s linear;
+        }
+
+        .answer-card.fade-out {
+            opacity: 0;
+            pointer-events: none;
+        }
+
+        .grant-points-btn {
+            margin-top: 15px;
+            padding: 8px 15px;
+            background-color: #4b86b4;
+            color: white;
+            border: none;
+            border-radius: 20px;
+            font-weight: bold;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+
+        .grant-points-btn:hover {
+            background-color: #3a6d94;
+            transform: scale(1.05);
+        }
+
+        .points-display {
+            font-size: 24px;
+            color: #2e7d32;
+            font-weight: bold;
+            margin: 10px 0;
+        }
+
+        .confirmation-message {
+            position: fixed;
+            top: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            background-color: #2e7d32;
+            color: white;
+            padding: 10px 20px;
+            border-radius: 20px;
+            font-size: 16px;
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.2);
+            z-index: 2000;
+            opacity: 0;
+            transition: opacity 0.3s;
+        }
+
+        .confirmation-message.show {
+            opacity: 1;
+        }
+
+        @keyframes float {
+            0%, 100% {
+                transform: translateY(0) rotate(0deg);
+            }
+            50% {
+                transform: translateY(-20px) rotate(2deg);
+            }
+        }
+
+        .floating {
+            animation: float 4s ease-in-out infinite;
+        }
+
+        .score-display {
+            position: fixed;
+            bottom: 20px;
+            right: 20px;
+            background-color: #4b86b4;
+            color: white;
+            padding: 10px 20px;
+            border-radius: 20px;
+            font-size: 18px;
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.2);
+        }
+
+        .loading-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0, 0, 0, 0.7);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            z-index: 2000;
+            color: white;
+            font-size: 24px;
+            flex-direction: column;
+        }
+
+        .loading-spinner {
+            border: 5px solid #f3f3f3;
+            border-top: 5px solid #4b86b4;
+            border-radius: 50%;
+            width: 50px;
+            height: 50px;
+            animation: spin 1s linear infinite;
+            margin-bottom: 20px;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        /* New glassmorphism confirmation popup */
+        .glass-confirmation {
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%) scale(0.8);
+            background: rgba(255, 255, 255, 0.2);
+            backdrop-filter: blur(10px);
+            -webkit-backdrop-filter: blur(10px);
+            border-radius: 20px;
+            padding: 30px;
+            text-align: center;
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.2);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            z-index: 3000;
+            opacity: 0;
+            pointer-events: none;
+            transition: all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+            max-width: 80%;
+            width: auto;
+            min-width: 300px;
+        }
+
+        .glass-confirmation.show {
+            opacity: 1;
+            transform: translate(-50%, -50%) scale(1);
+            pointer-events: auto;
+        }
+
+        .glass-confirmation h3 {
+            color: #2e7d32;
+            font-size: 24px;
+            margin-bottom: 10px;
+            text-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+        }
+
+        .glass-confirmation p {
+            color: #333;
+            font-size: 18px;
+            margin-bottom: 20px;
+        }
+
+        .glass-confirmation .points-count {
+            font-size: 32px;
+            font-weight: bold;
+            color: #4b86b4;
+            margin: 10px 0;
+            animation: pulse 1.5s infinite;
+        }
+
+        @keyframes pulse {
+            0% { transform: scale(1); }
+            50% { transform: scale(1.1); }
+            100% { transform: scale(1); }
+        }
+
+        /* Confetti styles */
+        .confetti-container {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            pointer-events: none;
+            z-index: 2000;
+            overflow: hidden;
+        }
+
+        .confetti {
+            position: absolute;
+            width: 10px;
+            height: 10px;
+            background-color: #f00;
+            opacity: 0;
+            animation: confetti-fall 3s ease-in-out forwards;
+        }
+
+        @keyframes confetti-fall {
+            0% {
+                transform: translateY(-100px) rotate(0deg);
+                opacity: 1;
+            }
+            100% {
+                transform: translateY(100vh) rotate(360deg);
+                opacity: 0;
+            }
+        }
+
+        /* Responsive styles */
+        @media (max-width: 768px) {
+            .game-container {
+                height: calc(100vh - 220px);
+            }
+            
+            .question-card {
+                width: 120px;
+                height: 80px;
+                font-size: 12px;
+            }
+            
+            .answer-card {
+                width: 90px;
+                height: 90px;
+            }
+            
+            .card-front {
+                font-size: 36px;
+            }
+            
+            .card-back {
+                font-size: 14px;
+            }
+            
+            .student-name {
+                font-size: 12px;
+            }
+            
+            .question-card.highlighted {
+                width: 250px;
+                min-height: 150px;
+                font-size: 18px;
+            }
+            
+            .question-card.highlighted::before {
+                font-size: 20px;
+                margin-bottom: 10px;
+            }
+
+            .points-display {
+                font-size: 20px;
+            }
+
+            .grant-points-btn {
+                padding: 6px 12px;
+                font-size: 14px;
+            }
+
+            .glass-confirmation {
+                min-width: 250px;
+                padding: 20px;
+            }
+
+            .glass-confirmation h3 {
+                font-size: 20px;
+            }
+
+            .glass-confirmation p {
+                font-size: 16px;
+            }
+
+            .glass-confirmation .points-count {
+                font-size: 28px;
+            }
+        }
+
+        @media (max-width: 480px) {
+            .controls {
+                flex-direction: column;
+                align-items: center;
+            }
+            
+            .question-card {
+                width: 100px;
+                height: 70px;
+                font-size: 10px;
+            }
+            
+            .answer-card {
+                width: 80px;
+                height: 80px;
+            }
+            
+            .card-front {
+                font-size: 30px;
+            }
+            
+            .card-back {
+                font-size: 12px;
+            }
+            
+            .student-name {
+                font-size: 10px;
+            }
+            
+            .question-card.highlighted {
+                width: 200px;
+                min-height: 120px;
+                font-size: 16px;
+                transform: translate(-50%, -50%) scale(1.2);
+            }
+            
+            .question-card.highlighted::before {
+                font-size: 18px;
+                margin-bottom: 8px;
+            }
+
+            .points-display {
+                font-size: 18px;
+            }
+
+            .grant-points-btn {
+                padding: 5px 10px;
+                font-size: 12px;
+                margin-top: 10px;
+            }
+
+            .glass-confirmation {
+                min-width: 200px;
+                padding: 15px;
+            }
+
+            .glass-confirmation h3 {
+                font-size: 18px;
+            }
+
+            .glass-confirmation p {
+                font-size: 14px;
+            }
+
+            .glass-confirmation .points-count {
+                font-size: 24px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="loading-overlay" id="loadingOverlay">
+        <div class="loading-spinner"></div>
+        <div>Loading game data...</div>
+    </div>
+
+    <div class="confirmation-message" id="confirmationMessage"></div>
+    <div class="glass-confirmation" id="glassConfirmation"></div>
+    <div class="confetti-container" id="confettiContainer"></div>
+
+    <div class="header">
+        <h1>IPA Matching Game</h1>
+        <p>Match students with English questions by clicking on the IPA cards</p>
+    </div>
+
+    <div class="controls">
+        <div class="schedule-selector">
+            <button class="schedule-btn" data-schedule="A">Schedule A (7-8 PM)</button>
+            <button class="schedule-btn" data-schedule="B">Schedule B (9-10 PM)</button>
+        </div>
+        <button class="start-btn" id="startGame">Start Game</button>
+    </div>
+
+    <div class="game-container">
+        <div class="questions-section" id="questionsSection"></div>
+        <div class="answers-section" id="answersSection"></div>
+    </div>
+
+    <div class="score-display">
+        Matches: <span id="score">0</span>/<span id="totalQuestions">0</span>
+    </div>
+
+    <audio id="matchSound" preload="auto"></audio>
+    <audio id="flipSound" preload="auto"></audio>
+
+    <script>
+        // Game Configuration - REPLACE WITH YOUR DEPLOYED WEB APP URL
+        const SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbwvXEz90-VvQRjoyhh8BYnYGD3X8LflSl_mGitQ8iYvL1aWPUPuEYiI-PjncTWSjcOs/exec';
+        const IPA_SYMBOLS = [
+            "f", "v", "θ", "ð", "s", "z", "ʃ", "ʒ", "h", "tʃ", 
+            "dʒ", "m", "n", "ŋ", "l", "r", "j", "w", "p", "b", 
+            "t", "d", "k", "g", "ʔ", "i", "ɪ", "e", "æ", "ɑ", 
+            "ɔ", "ʊ", "u", "ʌ", "ə", "ɚ", "aɪ", "aʊ", "ɔɪ", "eɪ", 
+            "oʊ", "ɝ", "ɜ", "ɛ", "ɐ", "ɨ", "ʍ", "x", "ɣ", "ɹ"
+        ];
+
+        // Game State
+        let gameData = {
+            students: [],
+            questions: {
+                beginner: [],
+                intermediate: []
+            },
+            settings: {
+                cardsPerStudent: 3,
+                matchSoundURL: 'https://assets.mixkit.co/sfx/preview/mixkit-correct-answer-tone-2870.mp3',
+                flipSoundURL: 'https://assets.mixkit.co/sfx/preview/mixkit-plastic-tap-1929.mp3',
+                grantPoints: 5
+            }
+        };
+        let score = 0;
+        let currentHighlightedPair = null;
+        let matchedPairs = new Set();
+        let currentSchedule = null;
+        let currentStudents = [];
+        let currentQuestions = [];
+        let studentScores = {};
+        let currentRoundStudents = [];
+        let currentRoundIndex = 0;
+        const flipSound = document.getElementById('flipSound');
+        const matchSound = document.getElementById('matchSound');
+        const loadingOverlay = document.getElementById('loadingOverlay');
+        const confirmationMessage = document.getElementById('confirmationMessage');
+        const glassConfirmation = document.getElementById('glassConfirmation');
+        const confettiContainer = document.getElementById('confettiContainer');
+
+        // DOM Elements
+        const scheduleButtons = document.querySelectorAll('.schedule-btn');
+        const startButton = document.getElementById('startGame');
+        const questionsSection = document.getElementById('questionsSection');
+        const answersSection = document.getElementById('answersSection');
+        const scoreDisplay = document.getElementById('score');
+        const totalQuestionsDisplay = document.getElementById('totalQuestions');
+
+        // Initialize the game
+        async function init() {
+            showLoading();
+            
+            try {
+                await loadSettings();
+                await loadGameData();
+                
+                matchSound.src = gameData.settings.matchSoundURL;
+                flipSound.src = gameData.settings.flipSoundURL;
+                
+                scheduleButtons.forEach(button => {
+                    button.addEventListener('click', () => selectSchedule(button.dataset.schedule));
+                });
+                startButton.addEventListener('click', initGame);
+                
+                hideLoading();
+            } catch (error) {
+                console.error('Initialization error:', error);
+                alert('Failed to load game data. Please try again later.');
+                hideLoading();
+            }
+        }
+
+        // Load game settings
+        async function loadSettings() {
+            try {
+                const response = await fetch(`${SCRIPT_URL}?action=getSettings`);
+                if (!response.ok) throw new Error('Failed to load settings');
+                const data = await response.json();
+                gameData.settings = {...gameData.settings, ...data};
+            } catch (error) {
+                console.error('Error loading settings:', error);
+            }
+        }
+
+        // Load game data
+        async function loadGameData() {
+            try {
+                const response = await fetch(`${SCRIPT_URL}?action=getGameData`);
+                if (!response.ok) throw new Error('Failed to load game data');
+                const data = await response.json();
+                gameData.students = data.students;
+                gameData.questions = data.questions;
+            } catch (error) {
+                console.error('Error loading game data:', error);
+                throw error;
+            }
+        }
+
+        // Show loading overlay
+        function showLoading() {
+            loadingOverlay.style.display = 'flex';
+        }
+
+        // Hide loading overlay
+        function hideLoading() {
+            loadingOverlay.style.display = 'none';
+        }
+
+        // Initialize the game
+        function initGame() {
+            score = 0;
+            matchedPairs = new Set();
+            currentHighlightedPair = null;
+            scoreDisplay.textContent = '0';
+            
+            questionsSection.innerHTML = '';
+            answersSection.innerHTML = '';
+            
+            createQuestionCards();
+            createAnswerCards();
+            
+            totalQuestionsDisplay.textContent = currentQuestions.length;
+        }
+
+        // Select schedule
+        function selectSchedule(schedule) {
+            currentSchedule = schedule;
+            
+            scheduleButtons.forEach(btn => {
+                btn.classList.toggle('active', btn.dataset.schedule === schedule);
+            });
+            
+            currentStudents = gameData.students.filter(student => student.schedule === schedule);
+            
+            studentScores = {};
+            currentStudents.forEach(student => {
+                studentScores[student.name] = {
+                    score: student.points || 0,
+                    baseName: student.name,
+                    level: student.level,
+                    studentID: student.studentid
+                };
+            });
+            
+            currentRoundStudents = [...currentStudents.map(s => s.name)];
+            shuffleArray(currentRoundStudents);
+            currentRoundIndex = 0;
+            
+            startButton.style.display = 'block';
+        }
+
+        // Create question cards
+        function createQuestionCards() {
+            currentQuestions = [];
+            
+            const beginnerPool = [...gameData.questions.beginner];
+            const intermediatePool = [...gameData.questions.intermediate];
+            
+            shuffleArray(beginnerPool);
+            shuffleArray(intermediatePool);
+            
+            currentStudents.forEach(student => {
+                const isBeginner = student.level === 'Beginner';
+                const questionPool = isBeginner ? beginnerPool : intermediatePool;
+                const cardsPerStudent = parseInt(gameData.settings.cardsPerStudent) || 2;
+                
+                const questionCount = Math.min(cardsPerStudent, questionPool.length);
+                
+                for (let i = 0; i < questionCount && questionPool.length > 0; i++) {
+                    const question = questionPool.pop();
+                    if (question) {
+                        currentQuestions.push({
+                            text: question,
+                            student: student.name,
+                            isBeginner: isBeginner,
+                            studentID: student.studentid
+                        });
+                    }
+                }
+            });
+            
+            const containerWidth = questionsSection.offsetWidth;
+            const containerHeight = questionsSection.offsetHeight;
+            const cardWidth = 150;
+            const cardHeight = 100;
+            const padding = 20;
+            
+            const cols = Math.max(1, Math.floor(containerWidth / (cardWidth + padding * 2)));
+            const rows = Math.max(1, Math.floor(containerHeight / (cardHeight + padding * 2)));
+            
+            currentQuestions.forEach((question, index) => {
+                const card = document.createElement('div');
+                card.className = `question-card floating ${question.isBeginner ? 'beginner' : ''}`;
+                card.textContent = question.text;
+                card.dataset.index = index;
+                card.dataset.student = question.student;
+                card.dataset.studentId = question.studentID;
+                
+                const col = index % cols;
+                const row = Math.floor(index / cols) % rows;
+                
+                const randomX = Math.random() * padding - padding/2;
+                const randomY = Math.random() * padding - padding/2;
+                
+                const left = Math.max(padding, Math.min(
+                    (col * (cardWidth + padding * 2)) + padding + randomX,
+                    containerWidth - cardWidth - padding
+                ));
+                
+                const top = Math.max(padding, Math.min(
+                    (row * (cardHeight + padding * 2)) + padding + randomY,
+                    containerHeight - cardHeight - padding
+                ));
+                
+                card.style.left = `${left}px`;
+                card.style.top = `${top}px`;
+                
+                const duration = Math.random() * 3 + 3;
+                const delay = Math.random() * 5;
+                
+                card.style.animationDuration = `${duration}s`;
+                card.style.animationDelay = `${delay}s`;
+                
+                questionsSection.appendChild(card);
+            });
+        }
+
+        // Create answer cards
+        function createAnswerCards() {
+            answersSection.innerHTML = '';
+            
+            const studentsForRound = [...currentRoundStudents];
+            
+            if (currentRoundIndex >= studentsForRound.length) {
+                shuffleArray(studentsForRound);
+                currentRoundIndex = 0;
+            }
+            
+            studentsForRound.forEach((studentName, index) => {
+                const studentData = studentScores[studentName] || { 
+                    score: 0, 
+                    baseName: studentName, 
+                    level: 'Intermediate' 
+                };
+                const isBeginner = studentData.level === 'Beginner';
+                
+                const card = document.createElement('div');
+                card.className = 'answer-card';
+                if (index === currentRoundIndex) {
+                    card.classList.add('next-in-turn');
+                }
+                card.dataset.student = studentName;
+                card.dataset.isBeginner = isBeginner;
+                
+                const ipaIndex = index % IPA_SYMBOLS.length;
+                
+                card.innerHTML = `
+                    <div class="card-inner">
+                        <div class="card-front">${IPA_SYMBOLS[ipaIndex]}</div>
+                        <div class="card-back ${isBeginner ? 'beginner' : ''}">
+                            <span class="student-name">${studentData.baseName}</span>
+                        </div>
+                    </div>
+                `;
+                
+                card.addEventListener('click', handleCardClick);
+                answersSection.appendChild(card);
+            });
+        }
+
+        // Handle card click
+        function handleCardClick(event) {
+            const card = event.currentTarget;
+            if (card.classList.contains('flipped') || card.classList.contains('flying')) return;
+
+            // Remove existing popup if open
+            if (currentHighlightedPair) {
+                removeMatchedPair(currentHighlightedPair.questionCard, currentHighlightedPair.answerCard);
+                currentHighlightedPair = null;
+            }
+
+            // Play flip sound
+            flipSound.currentTime = 0;
+            flipSound.play();
+            card.classList.add('flipped');
+
+            const studentName = card.dataset.student;
+            const isBeginner = card.dataset.isBeginner === 'true';
+
+            // Set round index to this student
+            const studentIndex = currentRoundStudents.indexOf(studentName);
+            if (studentIndex >= 0) {
+                currentRoundIndex = (studentIndex + 1) % currentRoundStudents.length;
+            }
+
+            // Find matching question card immediately
+            const targetQuestion = Array.from(document.querySelectorAll('.question-card:not(.matched)'))
+                .find(qCard => {
+                    const qIsBeginner = qCard.classList.contains('beginner');
+                    return (isBeginner ? qIsBeginner : !qIsBeginner) && qCard.dataset.student === studentName;
+                });
+
+            setTimeout(() => {
+                flyCardToQuestion(card, targetQuestion);
+            }, 800);
+        }
+
+        // flyCardToQuestion now accepts the already matched question card (or null)
+        function flyCardToQuestion(card, targetQuestion) {
+            if (!targetQuestion) {
+                // No match, just flip card back
+                setTimeout(() => {
+                    card.classList.remove('flipped');
+                }, 500);
+                return;
+            }
+
+            // Animate card to target question
+            const cardRect = card.getBoundingClientRect();
+            const targetRect = targetQuestion.getBoundingClientRect();
+            card.classList.add('flying');
+            card.style.left = `${cardRect.left}px`;
+            card.style.top = `${cardRect.top}px`;
+            card.style.width = `${cardRect.width}px`;
+            card.style.height = `${cardRect.height}px`;
+
+            const waypoints = createFlightPath(cardRect, targetRect);
+            animateFlight(card, waypoints, targetQuestion);
+        }
+
+        // Create flight path
+        function createFlightPath(startRect, endRect) {
+            const waypoints = [];
+            const steps = 5;
+            
+            const deviationX = (Math.random() - 0.5) * 300;
+            const deviationY = (Math.random() - 0.5) * 300;
+            
+            for (let i = 0; i <= steps; i++) {
+                const progress = i / steps;
+                const x = startRect.left + (endRect.left - startRect.left) * progress + 
+                         Math.sin(progress * Math.PI) * deviationX;
+                const y = startRect.top + (endRect.top - startRect.top) * progress + 
+                         Math.sin(progress * Math.PI) * deviationY;
+                
+                const rotation = progress * 720;
+                
+                waypoints.push({ x, y, rotation });
+            }
+            
+            return waypoints;
+        }
+
+        // Animate flight
+        function animateFlight(card, waypoints, targetQuestion) {
+            if (waypoints.length === 0) {
+                completeFlight(card, targetQuestion);
+                return;
+            }
+            
+            const point = waypoints.shift();
+            card.style.transform = `translate(${point.x}px, ${point.y}px) rotate(${point.rotation}deg)`;
+            
+            setTimeout(() => {
+                animateFlight(card, waypoints, targetQuestion);
+            }, 100);
+        }
+
+        // Complete flight
+        function completeFlight(card, targetQuestion) {
+            matchSound.currentTime = 0;
+            matchSound.play();
+            
+            targetQuestion.classList.add('matched', 'highlighted');
+            
+            const pointsToGrant = gameData.settings.grantPoints || 5;
+            targetQuestion.innerHTML = `
+                <div>${targetQuestion.textContent}</div>
+                <div class="points-display">+${pointsToGrant} points</div>
+                <button class="grant-points-btn">Grant Points</button>
+            `;
+            
+            const grantButton = targetQuestion.querySelector('.grant-points-btn');
+            grantButton.addEventListener('click', () => {
+                grantPointsToStudent(targetQuestion.dataset.studentId, pointsToGrant, targetQuestion.dataset.student);
+            });
+            
+            const targetRect = targetQuestion.getBoundingClientRect();
+            card.style.transform = `translate(${targetRect.left}px, ${targetRect.top}px) rotate(0deg)`;
+            
+            currentHighlightedPair = {
+                questionCard: targetQuestion,
+                answerCard: card
+            };
+            
+            score++;
+            scoreDisplay.textContent = score;
+            
+            setTimeout(() => {
+                createAnswerCards();
+            }, 1000);
+            
+            if (score === currentQuestions.length) {
+                setTimeout(() => {
+                    alert('Congratulations! You matched all students with questions!');
+                }, 500);
+            }
+        }
+
+        // Grant points to student (CORS-safe GET)
+        async function grantPointsToStudent(studentID, points, studentName) {
+            showLoading();
+            try {
+                // Send as GET (so it's CORS-friendly)
+                const url = `${SCRIPT_URL}?action=grantPoints&studentID=${encodeURIComponent(studentID)}&points=${encodeURIComponent(points)}`;
+                const response = await fetch(url); // GET request
+                if (!response.ok) throw new Error('Failed to grant points');
+                const result = await response.json();
+
+                if (result.success) {
+                    showGlassConfirmation(points, studentName);
+                    createConfetti();
+                    const studentData = Object.values(studentScores).find(s => s.studentID === studentID);
+                    if (studentData) {
+                        studentData.score = (studentData.score || 0) + points;
+                    }
+                } else {
+                    showConfirmation(`⚠️ ${result.message || 'Failed to grant points'}`);
+                }
+            } catch (error) {
+                console.error('Error granting points:', error);
+                showConfirmation('⚠️ Failed to grant points. Please try again.');
+            } finally {
+                hideLoading();
+            }
+        }
+
+        // Show glass confirmation with animation
+        function showGlassConfirmation(points, studentName) {
+            glassConfirmation.innerHTML = `
+                <h3>Points Granted!</h3>
+                <div class="points-count">+${points}</div>
+                <p>to ${studentName}</p>
+            `;
+            
+            glassConfirmation.classList.add('show');
+            
+            setTimeout(() => {
+                glassConfirmation.classList.remove('show');
+                removeMatchedPair(currentHighlightedPair.questionCard, currentHighlightedPair.answerCard);
+                currentHighlightedPair = null;
+            }, 3000);
+        }
+
+        // Create confetti effect
+        function createConfetti() {
+            // Clear previous confetti
+            confettiContainer.innerHTML = '';
+            
+            // Create 50 confetti pieces
+            for (let i = 0; i < 50; i++) {
+                const confetti = document.createElement('div');
+                confetti.className = 'confetti';
+                
+                // Random position
+                const left = Math.random() * 100;
+                
+                // Random color
+                const colors = ['#f44336', '#e91e63', '#9c27b0', '#673ab7', '#3f51b5', 
+                               '#2196f3', '#03a9f4', '#00bcd4', '#009688', '#4CAF50', 
+                               '#8BC34A', '#CDDC39', '#FFEB3B', '#FFC107', '#FF9800'];
+                const color = colors[Math.floor(Math.random() * colors.length)];
+                
+                // Random shape
+                const size = Math.random() * 10 + 5;
+                const shape = Math.random() > 0.5 ? '50%' : '0';
+                
+                confetti.style.left = `${left}%`;
+                confetti.style.backgroundColor = color;
+                confetti.style.width = `${size}px`;
+                confetti.style.height = `${size}px`;
+                confetti.style.borderRadius = shape;
+                
+                // Random animation duration and delay
+                const duration = Math.random() * 2 + 2;
+                const delay = Math.random() * 0.5;
+                
+                confetti.style.animationDuration = `${duration}s`;
+                confetti.style.animationDelay = `${delay}s`;
+                
+                confettiContainer.appendChild(confetti);
+            }
+            
+            // Remove confetti after animation completes
+            setTimeout(() => {
+                confettiContainer.innerHTML = '';
+            }, 3000);
+        }
+
+        // Show confirmation
+        function showConfirmation(message) {
+            confirmationMessage.textContent = message;
+            confirmationMessage.classList.add('show');
+            
+            setTimeout(() => {
+                confirmationMessage.classList.remove('show');
+            }, 3000);
+        }
+
+        // Remove matched pair
+        function removeMatchedPair(questionCard, answerCard) {
+            if (!questionCard || !answerCard) return;
+            
+            questionCard.style.position = '';
+            questionCard.style.top = '';
+            questionCard.style.left = '';
+            questionCard.style.transform = '';
+            
+            questionCard.classList.remove('highlighted', 'matched');
+            
+            questionCard.classList.add('fade-out');
+            answerCard.classList.add('fade-out');
+            
+            setTimeout(() => {
+                questionCard.remove();
+                answerCard.remove();
+            }, 500);
+        }
+
+        // Shuffle array
+        function shuffleArray(array) {
+            for (let i = array.length - 1; i > 0; i--) {
+                const j = Math.floor(Math.random() * (i + 1));
+                [array[i], array[j]] = [array[j], array[i]];
+            }
+            return array;
+        }
+
+        // Initialize
+        document.addEventListener('DOMContentLoaded', init);
+    </script>
+</body>
+</html>
